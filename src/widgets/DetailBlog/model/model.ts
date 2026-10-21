@@ -1,35 +1,59 @@
+import axios from 'axios'
 import { makeAutoObservable, runInAction } from 'mobx'
-import { BlogItem } from './types'
 import { getBlog } from '../api'
+import type { BlogItem, RequestStatus } from '@/shared/api/types'
 
 export class BlogStore {
     blog: BlogItem | null = null
-    status: 'init' | 'loading' | 'success' | 'error' = 'init'
+    status: RequestStatus = 'init'
+    private controller?: AbortController
+    private requestId = 0
 
     constructor() {
-        makeAutoObservable(this)
+        makeAutoObservable<this, 'controller' | 'requestId'>(
+            this,
+            {
+                controller: false,
+                requestId: false,
+            },
+            { autoBind: true }
+        )
     }
 
-    fetchClear = () => {
+    cancel() {
+        this.requestId++
+        this.controller?.abort()
+    }
+
+    async fetchBlog(id: number) {
+        this.cancel()
         this.blog = null
-        this.status = 'init'
-    }
-
-    fetchBlog = async (id: number) => {
-        this.blog
+        if (!Number.isSafeInteger(id) || id < 1) {
+            this.status = 'not-found'
+            return
+        }
+        const requestId = this.requestId
+        const controller = new AbortController()
+        this.controller = controller
         this.status = 'loading'
         try {
-            const blogs = await getBlog(id)
+            const blog = await getBlog(id, controller.signal)
+            if (controller.signal.aborted || requestId !== this.requestId) return
             runInAction(() => {
-                this.blog = blogs
+                this.blog = blog
                 this.status = 'success'
             })
-        } catch (e) {
+        } catch (error) {
+            if (controller.signal.aborted || requestId !== this.requestId || axios.isCancel(error))
+                return
             runInAction(() => {
-                this.status = 'error'
+                this.status =
+                    axios.isAxiosError(error) &&
+                    error.response?.status === 404 &&
+                    error.config?.url === '/posts/' + id
+                        ? 'not-found'
+                        : 'error'
             })
         }
     }
 }
-
-export const blogStore = new BlogStore()

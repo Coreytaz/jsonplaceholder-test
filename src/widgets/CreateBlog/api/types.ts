@@ -1,6 +1,1 @@
-export interface ApiBlogsData {
-    userId: number
-    id: number
-    title: string
-    body: string
-}
+export type { Post as ApiBlogsData } from '@/shared/api/types'

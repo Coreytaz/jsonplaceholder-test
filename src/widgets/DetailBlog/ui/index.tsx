@@ -1,115 +1,72 @@
-import { Heading, Box, useColorModeValue, Text, BoxProps, Skeleton, Image } from '@chakra-ui/react'
+import { Heading, Box, Text, Stack } from '@chakra-ui/react'
 import { observer } from 'mobx-react-lite'
-import { FC, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useBlogStore } from '../model'
 import { useRouter } from 'next/router'
 import { BlogAuthor } from '@/widgets/BlogAuthor'
 import { SkeletonDetailBlog } from './SkeletonDetailBlog'
-import { ErrorDetailBlog } from './ErrorDetailBlog'
+import { RequestError } from '@/shared/ui/RequestError'
+import { Cover } from '@/shared/ui/Cover'
 import Head from 'next/head'
 
-interface DetailBlogProps extends BoxProps {}
-
-export const DetailBlog: FC<DetailBlogProps> = observer(({ ...props }) => {
+export const DetailBlog = observer(function DetailBlog() {
     const router = useRouter()
     const store = useBlogStore()
-
+    const rawId = router.query.id
+    const id = typeof rawId === 'string' && /^\d+$/.test(rawId) ? Number(rawId) : NaN
+    const ready = router.isReady
     useEffect(() => {
-        if (router.query.id) {
-            store.fetchBlog(Number(router.query.id))
-        }
-        return () => {
-            store.fetchClear()
-        }
-    }, [router.query.id, store])
+        if (!ready) return
+        void store.fetchBlog(id)
+        return () => store.cancel()
+    }, [ready, id, store])
 
-    if (store.status === 'error') {
-        return <ErrorDetailBlog />
-    }
-
-    if (store.status === 'loading' || store.status === 'init') {
-        return <SkeletonDetailBlog />
-    }
-
+    if (store.status === 'not-found') return <RequestError notFound />
+    if (store.status === 'error') return <RequestError onRetry={() => void store.fetchBlog(id)} />
+    if (store.status !== 'success' || !store.blog) return <SkeletonDetailBlog />
     return (
         <>
             <Head>
-                <title>{store.blog?.title}</title>
+                <title>{store.blog.title}</title>
             </Head>
-            <Box {...props}>
-                <Heading
-                    mt="5"
-                    color="green.500"
-                    as="h2"
-                    size={{ base: 'md', sm: 'lg' }}
-                    textTransform="uppercase"
-                    fontWeight={800}
-                    letterSpacing={1.1}
-                >
-                    {store.blog?.title}
-                </Heading>
-                <Box
-                    marginTop={{ base: '1', sm: '5' }}
-                    display="flex"
-                    flexDirection={{ base: 'column', sm: 'row' }}
-                    justifyContent="space-between"
-                >
+            <Heading
+                mt="5"
+                color="green.500"
+                as="h1"
+                fontSize={{ base: 'xl', md: '3xl' }}
+                textTransform="uppercase"
+                fontWeight={800}
+                letterSpacing={1.1}
+            >
+                {store.blog.title}
+            </Heading>
+            <Stack mt="5" direction={{ base: 'column', md: 'row' }} gap="8" align="center">
+                <Box flex="1" w="full" position="relative" p="5">
                     <Box
-                        display="flex"
-                        flex="1"
-                        marginRight="3"
+                        position="absolute"
+                        inset="0"
+                        opacity="0.4"
+                        backgroundSize="20px 20px"
+                        backgroundImage="radial-gradient(#dd6b20 1px, transparent 1px)"
+                    />
+                    <Cover
                         position="relative"
-                        alignItems="center"
-                    >
-                        <Box
-                            width={{ base: '100%', sm: '85%' }}
-                            zIndex="2"
-                            marginLeft={{ base: '0', sm: '5%' }}
-                            marginTop="5%"
-                        >
-                            <Image
-                                borderRadius="lg"
-                                src={store.blog?.img}
-                                alt=""
-                                fallback={
-                                    <Skeleton
-                                        width={{ base: '100%' }}
-                                        height={{ base: 260, md: 460 }}
-                                    />
-                                }
-                            />
-                        </Box>
-                        <Box zIndex="1" width="100%" position="absolute" height="100%">
-                            <Box
-                                bgGradient={useColorModeValue(
-                                    'radial(orange.600 1px, transparent 1px)',
-                                    'radial(orange.300 1px, transparent 1px)'
-                                )}
-                                backgroundSize="20px 20px"
-                                opacity="0.4"
-                                height="100%"
-                            />
-                        </Box>
-                    </Box>
-                    <Box
-                        display="flex"
-                        flex="1"
-                        flexDirection="column"
-                        justifyContent="center"
-                        marginTop={{ base: '3', sm: '0' }}
-                    >
-                        <Text
-                            as="p"
-                            marginTop="2"
-                            color={useColorModeValue('gray.700', 'gray.200')}
-                            fontSize="lg"
-                        >
-                            {store.blog?.body}
-                        </Text>
-                        <BlogAuthor />
-                    </Box>
+                        rounded="lg"
+                        src={store.blog.img}
+                        alt={store.blog.title}
+                    />
                 </Box>
-            </Box>
+                <Box flex="1" w="full">
+                    <Text
+                        fontSize="lg"
+                        color={{ base: 'gray.700', _dark: 'gray.200' }}
+                        whiteSpace="pre-line"
+                    >
+                        {store.blog.body}
+                    </Text>
+                    <BlogAuthor />
+                </Box>
+            </Stack>
         </>
     )
 })

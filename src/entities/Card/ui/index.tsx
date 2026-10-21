@@ -1,34 +1,24 @@
-import { Box, Heading, Text, Stack, useColorModeValue, Skeleton, Image } from '@chakra-ui/react'
-import { FC, HTMLAttributes } from 'react'
-import { BlogsItem } from '../model/types'
+import { Box, Heading, Text, Stack, LinkOverlay, LinkBox } from '@chakra-ui/react'
+import NextLink from 'next/link'
+import type { BlogsItem } from '../model/types'
+import { Cover } from '@/shared/ui/Cover'
 
-interface CardProps extends HTMLAttributes<HTMLDivElement> {
-    blog: BlogsItem
-}
-
-export const Card: FC<CardProps> = ({ blog, ...props }) => {
+export function Card({ blog }: { blog: BlogsItem }) {
     return (
-        <Box
-            _active={{ transform: 'scale(0.98)' }}
+        <LinkBox
             as="article"
-            cursor="pointer"
-            transition="all 0.2s linear"
+            transition="transform 0.2s"
             _hover={{ transform: 'translateY(-2px)' }}
             maxW="360px"
             w="full"
-            bg={useColorModeValue('white', 'gray.700')}
+            bg={{ base: 'white', _dark: 'gray.700' }}
             boxShadow="2xl"
             rounded="md"
             p={6}
             overflow="hidden"
-            {...props}
         >
-            <Box bg="gray.100" mt={-6} mx={-6} mb={6} pos="relative">
-                <Image
-                    src={blog?.img}
-                    alt={blog.title}
-                    fallback={<Skeleton width={{ base: '100%' }} height={{ base: 260, md: 360 }} />}
-                />
+            <Box bg="gray.100" mt={-6} mx={-6} mb={6}>
+                <Cover src={blog.img} alt={blog.title} />
             </Box>
             <Stack>
                 <Text
@@ -41,19 +31,19 @@ export const Card: FC<CardProps> = ({ blog, ...props }) => {
                     Blog
                 </Text>
                 <Heading
-                    color={useColorModeValue('gray.700', 'white')}
+                    color={{ base: 'gray.700', _dark: 'white' }}
                     fontSize="xl"
                     fontFamily="body"
                 >
-                    {blog.title}
+                    <LinkOverlay asChild>
+                        <NextLink href={'/blog/' + blog.id}>{blog.title}</NextLink>
+                    </LinkOverlay>
                 </Heading>
             </Stack>
-            <Stack mt={6} direction="row" spacing={4} align="center">
-                <Stack direction="column" spacing={0} fontSize="sm">
-                    <Text color="gray.500">Author</Text>
-                    <Text fontWeight={600}>{blog.user?.name}</Text>
-                </Stack>
+            <Stack mt={6} gap={0} fontSize="sm">
+                <Text color="fg.muted">Author</Text>
+                <Text fontWeight={600}>{blog.user?.name ?? 'Unknown author'}</Text>
             </Stack>
-        </Box>
+        </LinkBox>
     )
 }

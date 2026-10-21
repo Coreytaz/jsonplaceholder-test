@@ -1,49 +1,59 @@
+import axios from 'axios'
 import { makeAutoObservable, runInAction } from 'mobx'
-import { BlogsItem, FlowReturn } from './types'
-import { getAllBlogsLength, getBlogs } from '../api'
+import { getBlogs } from '../api'
+import type { BlogItem, RequestStatus } from '@/shared/api/types'
 
 export class BlogsStore {
-    page: number = 1
-    limit: number = 10
-    totalPage: number = 0
-    blogs: BlogsItem[] | null = null
-    status: 'init' | 'loading' | 'success' | 'error' = 'init'
+    page = 1
+    limit = 10
+    total = 0
+    blogs: BlogItem[] = []
+    status: RequestStatus = 'init'
+    private controller?: AbortController
+    private requestId = 0
 
     constructor() {
-        makeAutoObservable(this)
+        makeAutoObservable<this, 'controller' | 'requestId'>(
+            this,
+            {
+                controller: false,
+                requestId: false,
+            },
+            { autoBind: true }
+        )
     }
 
-    setPage = (page: number) => {
-        this.page = page
+    get totalPage() {
+        return Math.max(1, Math.ceil(this.total / this.limit))
     }
-    setLimit = (limit: number) => {
+
+    cancel() {
+        this.requestId++
+        this.controller?.abort()
+    }
+
+    async fetchBlogs(limit = this.limit, page = this.page) {
+        this.cancel()
+        const requestId = this.requestId
+        const controller = new AbortController()
+        this.controller = controller
         this.limit = limit
-    }
-
-    setTotalPage = async () => {
-        try {
-            const length = await getAllBlogsLength()
-            runInAction(() => {
-                this.totalPage = Math.ceil(length / this.limit)
-            })
-        } catch (error) {}
-    }
-
-    fetchBlogs = async (limit: number = this.limit, page: number = this.page) => {
+        this.page = page
         this.status = 'loading'
-        this.blogs = null
         try {
-            const blogs = await getBlogs(limit, page)
+            const { blogs, total } = await getBlogs(limit, page, controller.signal)
+            if (controller.signal.aborted || requestId !== this.requestId) return
             runInAction(() => {
                 this.blogs = blogs
+                this.total = total
                 this.status = 'success'
             })
-        } catch (e) {
+        } catch (error) {
+            if (controller.signal.aborted || requestId !== this.requestId || axios.isCancel(error))
+                return
             runInAction(() => {
                 this.status = 'error'
             })
         }
     }
 }
-
-export const blogsStore = new BlogsStore()

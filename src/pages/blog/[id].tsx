@@ -1,25 +1,26 @@
-import { DetailBlog, StoreBlogProvider, blogStore } from '@/widgets/DetailBlog'
-import { ArrowBackIcon } from '@chakra-ui/icons'
+import { DetailBlog, StoreBlogProvider, BlogStore } from '@/widgets/DetailBlog'
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@chakra-ui/react'
-import router from 'next/router'
+import { useRouter } from 'next/router'
+import { useState } from 'react'
 
 export default function Page() {
+    const [store] = useState(() => new BlogStore())
+    const router = useRouter()
     return (
-        <>
-            <main>
-                <Button
-                    variant="ghost"
-                    leftIcon={<ArrowBackIcon />}
-                    fontWeight={800}
-                    color="green.500"
-                    onClick={() => router.back()}
-                >
-                    Back
-                </Button>
-                <StoreBlogProvider store={blogStore}>
-                    <DetailBlog />
-                </StoreBlogProvider>
-            </main>
-        </>
+        <main>
+            <Button
+                variant="ghost"
+                fontWeight={800}
+                color="green.500"
+                onClick={() => (window.history.length > 1 ? router.back() : router.push('/'))}
+            >
+                <ArrowLeft size={18} />
+                Back
+            </Button>
+            <StoreBlogProvider store={store}>
+                <DetailBlog />
+            </StoreBlogProvider>
+        </main>
     )
 }
